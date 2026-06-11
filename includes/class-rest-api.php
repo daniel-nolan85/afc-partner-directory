@@ -11,6 +11,7 @@ class AFC_REST_API {
     }
 
     public function register_routes() {
+        // Public endpoint for reading partners
         register_rest_route( $this->namespace, $this->route, array(
             'methods'             => WP_REST_Server::READABLE,
             'callback'            => array( $this, 'get_partners' ),
@@ -35,6 +36,17 @@ class AFC_REST_API {
                 ),
             ),
         ) );
+
+        // Protected endpoint for creating partners via API
+        register_rest_route( $this->namespace, $this->route . '/create', array(
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => array( $this, 'create_partner' ),
+            'permission_callback' => array( $this, 'check_permissions' ),
+        ) );
+    }
+
+    public function check_permissions() {
+        return AFC_Permissions::can_manage_partners();
     }
 
     public function get_partners( WP_REST_Request $request ) {
@@ -101,5 +113,38 @@ class AFC_REST_API {
         $response = new WP_REST_Response( $data, 200 );
         $response->header( 'X-AFC-Cache', 'MISS' );
         return $response;
+    }
+
+    public function create_partner( WP_REST_Request $request ) {
+        if ( ! AFC_Permissions::can_manage_partners() ) {
+            return new WP_Error( 'forbidden', 'You do not have permission to create partners.', array( 'status' => 403 ) );
+        }
+
+        $name        = sanitize_text_field( $request->get_param( 'name' ) );
+        $website_url = esc_url_raw( $request->get_param( 'website_url' ) );
+
+        if ( empty( $name ) ) {
+            return new WP_Error( 'missing_name', 'Partner name is required.', array( 'status' => 400 ) );
+        }
+
+        $post_id = wp_insert_post( array(
+            'post_title'  => $name,
+            'post_type'   => 'partner',
+            'post_status' => 'publish',
+        ) );
+
+        if ( is_wp_error( $post_id ) ) {
+            return new WP_Error( 'insert_failed', 'Failed to create partner.', array( 'status' => 500 ) );
+        }
+
+        if ( $website_url ) {
+            update_post_meta( $post_id, '_afc_website_url', $website_url );
+        }
+
+        return new WP_REST_Response( array(
+            'id'          => $post_id,
+            'name'        => $name,
+            'website_url' => $website_url,
+        ), 201 );
     }
 }

@@ -18,12 +18,17 @@ define( 'AFC_PLUGIN_VERSION', '1.0.0' );
 define( 'AFC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AFC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
+require_once AFC_PLUGIN_DIR . 'includes/class-permissions.php';
 require_once AFC_PLUGIN_DIR . 'includes/class-cpt.php';
 require_once AFC_PLUGIN_DIR . 'includes/class-meta-fields.php';
 require_once AFC_PLUGIN_DIR . 'includes/class-rest-api.php';
 require_once AFC_PLUGIN_DIR . 'includes/class-block.php';
 
+register_activation_hook( __FILE__, array( 'AFC_Permissions', 'activate' ) );
+register_deactivation_hook( __FILE__, array( 'AFC_Permissions', 'deactivate' ) );
+
 function afc_init() {
+    new AFC_Permissions();
     new AFC_CPT();
     new AFC_Meta_Fields();
     new AFC_REST_API();
