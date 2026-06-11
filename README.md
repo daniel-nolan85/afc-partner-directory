@@ -123,3 +123,38 @@ I specifically reviewed the save_meta function in class-meta-fields.php for the 
 - Input sanitization — esc_url_raw() for the website URL field, absint() for the logo attachment ID
 - Output escaping — all values output in render_meta_box() and render_block() use esc_url(), esc_html(), or esc_attr() as appropriate
 - Autosave guard — confirmed DOING_AUTOSAVE check prevents unintended saves
+
+---
+
+## Role-Based Permissions
+
+The plugin implements a custom `manage_partners` capability to control who can manage partner records.
+
+- **Administrators** and **Editors** are granted the `manage_partners` capability on plugin activation
+- The capability is cleanly removed on plugin deactivation
+- The REST API create endpoint (`POST /wp-json/custom/v1/partners/create`) is gated behind this capability and returns a 403 for unauthorized requests
+- Public read access remains open since partner data is intended for frontend display
+
+## Unit Tests
+
+Tests are located in the `tests/` directory and use PHPUnit with wp-phpunit.
+
+### Test Coverage
+
+- REST route is registered correctly
+- Endpoint returns 200 response
+- Response contains expected data structure (partners, total, total_pages, page, per_page)
+- Published partners appear in the response
+- Draft partners are excluded from the response
+- Category filtering returns only matching partners
+- per_page parameter is respected and pagination is correct
+- Create endpoint returns 403 for unauthorized users
+- Website URL sanitization strips dangerous protocols (e.g. javascript:)
+
+### Running Tests
+
+To run the test suite locally:
+
+1. Set up the WordPress test library
+2. Set the WP_TESTS_DIR environment variable
+3. Run: vendor/bin/phpunit
