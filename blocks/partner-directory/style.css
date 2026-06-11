@@ -1,0 +1,61 @@
+.afc-partner-directory {
+    display: grid;
+    grid-template-columns: repeat(var(--afc-columns, 3), 1fr);
+    gap: 24px;
+    padding: 16px 0;
+}
+
+.afc-partner-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.afc-partner-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.afc-partner-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.afc-partner-logo {
+    margin-bottom: 12px;
+}
+
+.afc-partner-logo img {
+    max-width: 120px;
+    max-height: 80px;
+    object-fit: contain;
+    margin: 0 auto;
+    display: block;
+}
+
+.afc-partner-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.afc-no-partners {
+    color: #6b7280;
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+    .afc-partner-directory {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .afc-partner-directory {
+        grid-template-columns: 1fr;
+    }
+}
