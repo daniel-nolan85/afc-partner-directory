@@ -45,7 +45,7 @@ Supports:
 - DDEV v1.22+
 
 ### Setup
-
+```bash
 ddev start
 
 ddev wp core download
@@ -55,6 +55,7 @@ ddev wp core install --url=https://afc-partners.ddev.site --title="AFC Partners"
 ddev wp plugin activate afc-partner-directory
 
 ddev launch
+```
 
 ### Admin Access
 - URL: https://afc-partners.ddev.site/wp-admin
@@ -65,30 +66,35 @@ ddev launch
 
 ## Project Structure
 
-afc-partner-directory.php
-├── includes/
-│   ├── class-cpt.php
-│   ├── class-meta-fields.php
-│   ├── class-rest-api.php
-│   ├── class-block.php
-│   └── class-permissions.php
+```bash
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+│
+├── assets/
+│   └── js/
+│       └── admin.js
 │
 ├── blocks/
 │   └── partner-directory/
 │       ├── index.js
 │       └── style.css
 │
-├── assets/
-│   └── js/
-│       └── admin.js
+├── includes/
+│   ├── class-block.php
+│   ├── class-cpt.php
+│   ├── class-meta-fields.php
+│   ├── class-permissions.php
+│   └── class-rest-api.php
 │
 ├── tests/
+│   ├── bootstrap.php
 │   └── test-partner-api.php
 │
-├── phpunit.xml
-├── composer.json
-└── .github/workflows/
-    └── ci.yml
+├── afc-partner-directory.php
+│
+└── phpunit.xml
+```
 
 ---
 
@@ -119,7 +125,9 @@ The plugin registers a custom manage_partners capability on activation. Administ
 ## REST API
 
 ### Endpoint
+```bash
 GET /wp-json/custom/v1/partners
+```
 
 ### Query Parameters
 
