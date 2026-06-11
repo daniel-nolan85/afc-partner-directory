@@ -1,86 +1,183 @@
 # AFC Partner Directory
 
-A custom WordPress plugin that registers and displays a directory of Partner Organizations for the AFC Scholarship Fund.
+A custom WordPress plugin built for the AFC Scholarship Fund that allows administrators to manage and display Partner Organizations through both the WordPress admin interface and a public REST API.
+
+The project was developed as part of a take-home assessment and demonstrates WordPress plugin development, Gutenberg integration, REST API design, security best practices, and local development workflows.
 
 ## Features
 
-- Custom Post Type (partner) with admin UI for creating, editing, and managing partner records
-- Per-partner fields: Name, Logo (media upload), Website URL, and Category (via taxonomy)
-- Gutenberg block (afc/partner-directory) with configurable columns and category filtering
-- REST API endpoint at GET /wp-json/custom/v1/partners with pagination, category filtering, and transient caching
-- Local development environment via DDEV + Docker
+### Partner Management
+- Custom Post Type (partner)
+- Partner Categories (partner_category taxonomy)
+- Website URL field
+- Logo upload using the WordPress Media Library
+- Admin interface for creating, editing, and managing partners
+- Role-based permissions with a custom manage_partners capability for administrators and editors
 
-## Local Development Setup
+### Frontend Display
+- Custom Gutenberg block (afc/partner-directory)
+- Configurable number of columns
+- Optional category filtering
+- Server-side rendering to ensure content remains up-to-date
+
+### REST API
+GET /wp-json/custom/v1/partners
+
+Supports:
+- Pagination
+- Category filtering
+- Cached responses using WordPress transients
+- Cache status headers (X-AFC-Cache: HIT/MISS)
+
+### Security
+- Nonce verification
+- Capability checks
+- Input sanitization
+- Output escaping
+- Autosave protection
+
+---
+
+## Local Development
 
 ### Prerequisites
+- Docker Desktop
+- DDEV v1.22+
 
-- Docker Desktop: https://www.docker.com/products/docker-desktop
-- DDEV v1.22+: https://ddev.readthedocs.io/en/stable/users/install/ddev-installation/
+### Setup
 
-### Steps
+ddev start
 
-1. Clone the repository and cd into it
-2. Run: ddev start
-3. Run: ddev wp core download
-4. Run: ddev wp core install --url=https://afc-partners.ddev.site --title="AFC Partners" --admin_user=admin --admin_password=admin123 --admin_email=admin@example.com
-5. Run: ddev wp plugin activate afc-partner-directory
-6. Run: ddev launch
+ddev wp core download
 
-WordPress admin: https://afc-partners.ddev.site/wp-admin
-Username: admin | Password: admin123
+ddev wp core install --url=https://afc-partners.ddev.site --title="AFC Partners" --admin_user=admin --admin_password=admin123 --admin_email=admin@example.com
 
-## Architecture Overview
+ddev wp plugin activate afc-partner-directory
 
-The plugin follows a class-based, single-responsibility structure:
+ddev launch
 
-- afc-partner-directory.php — Bootstrap: defines constants, loads classes
-- includes/class-cpt.php — Registers partner CPT and partner_category taxonomy
-- includes/class-meta-fields.php — Admin meta box: website URL and logo upload
-- includes/class-rest-api.php — REST endpoint: /wp-json/custom/v1/partners
-- includes/class-block.php — Gutenberg block registration and server-side render
-- blocks/partner-directory/index.js — Block editor UI (vanilla wp.element, no build step)
-- blocks/partner-directory/style.css — Frontend and editor styles
-- assets/js/admin.js — WordPress media uploader integration
-- .github/workflows/ci.yml — GitHub Actions: lint and deploy pipeline
+### Admin Access
+- URL: https://afc-partners.ddev.site/wp-admin
+- Username: admin
+- Password: admin123
 
-### Key Design Decisions
+---
 
-No build step required — The Gutenberg block uses the globally available wp.* APIs via an IIFE rather than requiring a Node.js build pipeline. This keeps the setup simple and dependency-free.
+## Project Structure
 
-Taxonomy for categories — Partner categories are implemented as a proper WordPress taxonomy (partner_category) rather than a freeform meta field. This enables WordPress-native filtering, archive pages, and REST API querying without custom query logic.
+afc-partner-directory.php
+├── includes/
+│   ├── class-cpt.php
+│   ├── class-meta-fields.php
+│   ├── class-rest-api.php
+│   ├── class-block.php
+│   └── class-permissions.php
+│
+├── blocks/
+│   └── partner-directory/
+│       ├── index.js
+│       └── style.css
+│
+├── assets/
+│   └── js/
+│       └── admin.js
+│
+├── tests/
+│   └── test-partner-api.php
+│
+├── phpunit.xml
+├── composer.json
+└── .github/workflows/
+    └── ci.yml
 
-Server-side block rendering — The block uses render_callback instead of a save function. This ensures partner data is always fresh on page load.
+---
 
-Transient caching on the REST API — API responses are cached for 5 minutes. Cache keys are derived from query parameters so filtered and paginated requests are cached independently. A custom X-AFC-Cache: HIT/MISS header makes cache behavior observable.
+## Architecture Notes
+
+I intentionally kept the plugin lightweight and dependency-free while following standard WordPress development patterns.
+
+### Custom Post Type + Taxonomy
+Partner records are stored as a dedicated Custom Post Type, while categories are implemented as a WordPress taxonomy rather than a custom field. This provides native support for filtering, querying, and future extensibility.
+
+### Server-Side Block Rendering
+The Gutenberg block uses a render_callback rather than saving HTML into post content. This ensures that updates to partner records are reflected immediately wherever the block is used.
+
+### REST API Caching
+REST API responses are cached using WordPress transients for five minutes. Cache keys are generated from request parameters so that different filter and pagination combinations are cached independently. A custom response header is included to make cache behavior visible during testing:
+
+X-AFC-Cache: HIT
+X-AFC-Cache: MISS
+
+### No Build Step
+The Gutenberg block is implemented using the globally available wp.* APIs rather than a Node-based build pipeline. For a larger project I would likely introduce @wordpress/scripts, but for a single block this approach keeps setup simple and reduces dependencies.
+
+### Role-Based Permissions
+The plugin registers a custom manage_partners capability on activation. Administrators and Editors are granted this capability automatically. The REST API create endpoint is gated behind this capability and returns a 403 for unauthorized requests. The capability is cleanly removed on plugin deactivation.
+
+---
 
 ## REST API
 
-Endpoint: GET /wp-json/custom/v1/partners
+### Endpoint
+GET /wp-json/custom/v1/partners
 
-Parameters:
-- category (string) — Filter by partner_category slug
-- per_page (integer, default 20) — Results per page, max 100
-- page (integer, default 1) — Page number
+### Query Parameters
 
-Authentication and Rate Limiting:
-The endpoint is currently public since partner data is intended for public display. For sensitive data, this would be switched to is_user_logged_in or a JWT/Application Password check. Rate limiting would be handled at the infrastructure layer via Nginx or Cloudflare.
+| Parameter | Description |
+|-----------|-------------|
+| category  | Filter by category slug |
+| per_page  | Number of results per page (default 20, max 100) |
+| page      | Page number (default 1) |
 
-## Key Tradeoffs
+### Authentication
+The read endpoint is public because partner information is intended for public display. If sensitive data were involved, I would add authentication using WordPress Application Passwords, JWT authentication, or a custom capability-based permission model.
 
-No npm/build toolchain — Avoids Node.js as a dev dependency. Tradeoff is slightly more verbose code and no JSX. For a larger block library a proper @wordpress/scripts setup would be appropriate.
+---
 
-Transients vs object cache — Transients work out of the box with no infrastructure requirements. In production with Redis or Memcached available, the caching layer would be upgraded to wp_cache_* for better performance.
+## Testing
 
-Public REST endpoint — Appropriate for a public-facing partner directory. If partner data were sensitive, authentication would be added.
+The plugin was manually tested using the following workflow:
+- Plugin activation and deactivation
+- Partner creation and editing
+- Logo uploads
+- Category assignment
+- Meta field persistence
+- Gutenberg block rendering
+- REST API pagination
+- REST API category filtering
+- Cache behavior verification
+- Gutenberg block confirmed live and rendering at /our-partners on the local development environment
 
-## What I Would Improve With More Time
+### Automated Tests
+PHPUnit tests cover:
+- Route registration
+- Successful API responses
+- Response structure
+- Published vs draft content
+- Category filtering
+- Pagination behavior
+- Authorization checks
+- URL sanitization
 
-- Cache invalidation on save — bust transient cache keys immediately via a save_post hook
-- REST API authentication option — optional require_auth setting for sensitive deployments
-- Unit tests — PHPUnit tests for REST API response structure and meta field sanitization
-- Block improvements — search/filter UI in the frontend block and sorting options
-- Logo fallback — placeholder SVG when no logo is uploaded
-- Admin list columns — Website URL and Category columns in the partner list table
+### Running Tests
+1. Set up the WordPress test library
+2. Set the WP_TESTS_DIR environment variable
+3. Run: vendor/bin/phpunit
+
+---
+
+## Tradeoffs
+
+### Why Use Transients?
+Transients provide a caching solution that works in a default WordPress installation without requiring additional infrastructure. For a production environment with Redis or Memcached available, I would switch to the WordPress object cache APIs.
+
+### Why a Public REST Endpoint?
+The API only exposes public-facing partner information, making public access appropriate and simplifying frontend consumption.
+
+### Why Avoid a Build Process?
+The assessment requirements can be met without introducing Node.js tooling. This reduces setup complexity while still demonstrating Gutenberg integration.
+
+---
 
 ## Production Deployment Notes
 
@@ -90,10 +187,25 @@ Public REST endpoint — Appropriate for a public-facing partner directory. If p
 4. Plugin deployment — Via GitHub Actions: lint on every push, deploy to staging on merge to main via SSH and WP-CLI cache flush
 5. Environment config — Use wp-config.php environment variables to separate credentials across environments
 
+---
+
+## Future Improvements
+
+Given additional time, I would consider:
+- Cache invalidation when partners are updated
+- Search functionality
+- Frontend sorting options
+- Placeholder logo support
+- Additional admin list table columns
+- Expanded PHPUnit coverage
+- End-to-end testing
+
+---
+
 ## AI Usage Notes
 
 ### Tools Used
-Claude (Anthropic) — used extensively throughout this project as a primary development partner for architecture decisions, code generation, environment setup, and documentation. The build took approximately 2 hours end-to-end. My role was directing, reviewing, correcting, and verifying the output at each step.
+I used Claude (Anthropic) as my primary development partner throughout this project for architecture decisions, code generation, environment setup, and documentation. The build took approximately 2 hours end-to-end. My role was directing, reviewing, correcting, and verifying the output at each step.
 
 ### How I Used AI
 AI assisted with: initial plugin architecture scaffolding, boilerplate for WordPress hooks and CPT registration, REST API class structure, Gutenberg block IIFE pattern, Docker/DDEV environment setup, and README drafting.
@@ -123,38 +235,3 @@ I specifically reviewed the save_meta function in class-meta-fields.php for the 
 - Input sanitization — esc_url_raw() for the website URL field, absint() for the logo attachment ID
 - Output escaping — all values output in render_meta_box() and render_block() use esc_url(), esc_html(), or esc_attr() as appropriate
 - Autosave guard — confirmed DOING_AUTOSAVE check prevents unintended saves
-
----
-
-## Role-Based Permissions
-
-The plugin implements a custom `manage_partners` capability to control who can manage partner records.
-
-- **Administrators** and **Editors** are granted the `manage_partners` capability on plugin activation
-- The capability is cleanly removed on plugin deactivation
-- The REST API create endpoint (`POST /wp-json/custom/v1/partners/create`) is gated behind this capability and returns a 403 for unauthorized requests
-- Public read access remains open since partner data is intended for frontend display
-
-## Unit Tests
-
-Tests are located in the `tests/` directory and use PHPUnit with wp-phpunit.
-
-### Test Coverage
-
-- REST route is registered correctly
-- Endpoint returns 200 response
-- Response contains expected data structure (partners, total, total_pages, page, per_page)
-- Published partners appear in the response
-- Draft partners are excluded from the response
-- Category filtering returns only matching partners
-- per_page parameter is respected and pagination is correct
-- Create endpoint returns 403 for unauthorized users
-- Website URL sanitization strips dangerous protocols (e.g. javascript:)
-
-### Running Tests
-
-To run the test suite locally:
-
-1. Set up the WordPress test library
-2. Set the WP_TESTS_DIR environment variable
-3. Run: vendor/bin/phpunit
